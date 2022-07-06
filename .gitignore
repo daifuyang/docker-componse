@@ -1,0 +1,13 @@
+workspace/mysql/mysql
+appendonly.aof.manifest
+fastcgi_params
+koi-utf
+koi-win
+mime.types
+modules
+nginx.conf
+scgi_params
+uwsgi_params
+win-utf
+appendonly.aof.1.base.rdb
+appendonly.aof.1.incr.aof
