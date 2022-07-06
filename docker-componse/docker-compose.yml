@@ -1,0 +1,73 @@
+version: "3.7"
+services:
+  php:
+    container_name: php
+    restart: always
+    depends_on:
+      - mysql
+    build: ./php #选择自己dockerfile的镜像
+    ports:
+      - "9000:9000"
+    links:
+      - mysql:mysql
+    volumes:
+      - ~/docker-workspace/workspace/www:/usr/share/nginx/html
+
+  nginx:
+    container_name: nginx
+    restart: always
+    image: nginx
+    privileged: true
+    ports:
+      - "80:80"
+    volumes:
+      - ~/docker-workspace/workspace/www:/usr/share/nginx/html
+      - ~/docker-workspace/workspace/conf/nginx:/etc/nginx
+      - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt
+    command: nginx -g 'daemon off;'
+    links:
+      - php
+
+  certbot:
+    image: certbot/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    volumes:
+      - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt
+      - ~/docker-workspace/workspace/www:/var/www/certbot
+    logging:
+      driver: json-file
+      options:
+        max-size: "2g" # 单个文件大小为200k
+        max-file: "10" # 最多10个文件
+
+  mysql:
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "dd5201314."
+      MYSQL_PASS: "dd5201314."
+    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    volumes:
+      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql #抛出文件，防止数据库丢失
+      - ~/docker-workspace/workspace/mysql/conf.d:/etc/mysql/conf.d
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: 200M
+
+  redis:
+    image: redis
+    restart: always
+    container_name: redis
+    hostname: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - ~/docker-workspace/workspace/redis/redis.conf:/etc/redis/redis.conf
+      - ~/docker-workspace/workspace/redis/data:/data:rw
+    command: redis-server /etc/redis/redis.conf --appendonly yes
