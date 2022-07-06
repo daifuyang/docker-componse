@@ -1,0 +1,26 @@
+Name: user
+Host: 0.0.0.0
+Port: 8801
+Timeout: 30000
+UserRpc:
+  Timeout: 30000
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: user.rpc
+AdminRpc:
+  Timeout: 30000
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: admin.rpc
+Database:
+  Type: mysql
+  Host: mysql
+  Database: gincmf_user
+  Username: root
+  Password: "dd5201314."
+  Port: 3306
+  Charset: utf8mb4
+  Prefix: cmf_
+  AuthCode: KFHlk2ubIlMr5ltqaD

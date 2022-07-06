@@ -1,0 +1,187 @@
+version: "3.7"
+services:
+  php:
+    container_name: php
+    restart: always
+    depends_on:
+      - mysql
+    build: ./php #选择自己dockerfile的镜像
+    # ports:
+    #   - "9000:9000"
+    links:
+      - mysql:mysql
+    volumes:
+      - ~/docker-workspace/workspace/www:/usr/share/nginx/html
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    restart: always
+    privileged: true
+    ports:
+      - "80:80"
+    volumes:
+      - ~/docker-workspace/workspace/www:/usr/share/nginx/html
+      - ~/docker-workspace/workspace/conf/nginx:/etc/nginx:ro
+      - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt:rw
+    command: nginx -g 'daemon off;'
+    links:
+      - php
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    volumes:
+      - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt
+      - ~/docker-workspace/workspace/www:/var/www/certbot
+    logging:
+      driver: json-file
+      options:
+        max-size: "2g" # 单个文件大小为200k
+        max-file: "10" # 最多10个文件
+
+  mysql:
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_PASS: "123456"
+    command: --default-authentication-plugin=mysql_native_password
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    volumes:
+      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql:rw #抛出文件，防止数据库丢失
+      - ~/docker-workspace/workspace/mysql/conf.d:/etc/mysql/conf.d:rw
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: 200M
+
+  redis:
+    image: redis
+    restart: always
+    container_name: redis
+    hostname: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - ~/docker-workspace/workspace/redis/redis.conf:/etc/redis/redis.conf:ro
+      - ~/docker-workspace/workspace/redis/data:/data:rw
+    command: redis-server /etc/redis/redis.conf --appendonly yes
+
+  apisix-dashboard:
+    image: apache/apisix-dashboard:2.10.1-alpine
+    container_name: apisix-dashboard
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/apisix/dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
+    ports:
+      - "9000:9000"
+
+  apisix:
+    image: apache/apisix:dev
+    container_name: apisix
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/apisix/apisix_log:/usr/local/apisix/logs:rw
+      - ~/docker-workspace/workspace/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ~/docker-workspace/workspace/apisix/go-runner:/usr/local/go-runner:ro
+    depends_on:
+      - etcd
+    ports:
+      - "9080:9080/tcp"
+      - "9091:9091/tcp"
+      - "9443:9443/tcp"
+      - "9092:9092/tcp"
+
+  etcd:
+    image: bitnami/etcd:latest
+    container_name: etcd
+    restart: always
+    # user: root
+    # volumes:
+    #   - ~/docker-workspace/workspace/etcd/etcd_data:/bitnami/etcd/data
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    # ports:
+    #   - "2379:2379"
+
+  admin-rpc:
+    image: return1996/admin-rpc:latest
+    container_name: admin-rpc
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/admin-rpc/data:/app/data:ro
+      - ~/docker-workspace/workspace/app/admin-rpc/etc:/app/etc:ro
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+
+  user-rpc:
+    image: return1996/user-rpc:latest
+    container_name: user-rpc
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/user-rpc/etc:/app/etc:ro
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+
+  admin-api:
+    image: return1996/admin-api:latest
+    container_name: admin-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/admin-api/data:/app/data:ro #
+      - ~/docker-workspace/workspace/app/admin-api/etc:/app/etc:ro
+      - ~/docker-workspace/workspace/app/admin-api/public:/app/public:rw
+    ports:
+      - "8800:8800"
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+
+  user-api:
+    image: return1996/user-api:latest
+    container_name: user-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/user-api/etc:/app/etc:ro
+    ports:
+      - "8801:8801"
+    depends_on:
+      - mysql
+    links:
+      - mysql
+      - etcd
+      - admin-rpc
+      - user-rpc
+
+  portal-api:
+    image: return1996/portal-api:latest
+    container_name: portal-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/portal-api/etc:/app/etc:ro
+    ports:
+      - "8802:8802"
+    depends_on:
+      - mysql
+    links:
+      - mysql
+      - etcd
+      - user-rpc

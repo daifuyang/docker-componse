@@ -1,0 +1,16 @@
+Name: admin
+Host: 0.0.0.0
+Port: 8800
+Timeout: 30000
+MaxBytes: 8388608
+
+Database:
+  Type: mysql
+  Host: mysql
+  Database: gincmf_admin
+  Username: root
+  Password: 'dd5201314.' 
+  Port: 3306
+  Charset: utf8mb4
+  Prefix: cmf_
+  AuthCode: KFHlk2ubIlMr5ltqaD
