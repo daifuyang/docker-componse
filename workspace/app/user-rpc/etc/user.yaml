@@ -10,7 +10,7 @@ Database:
   Host: mysql
   Database: gincmf_user
   Username: root
-  Password: 'dd5201314.'
+  Password: '123456'
   Port: 3306
   Charset: utf8mb4
   Prefix: cmf_

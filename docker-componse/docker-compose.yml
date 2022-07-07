@@ -32,7 +32,7 @@ services:
     image: certbot/certbot
     container_name: certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     volumes:
       - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt
       - ~/docker-workspace/workspace/www:/var/www/certbot
@@ -43,17 +43,16 @@ services:
         max-file: "10" # 最多10个文件
 
   mysql:
+    image: mysql
     container_name: mysql
     restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_PASS: "123456"
     command: --default-authentication-plugin=mysql_native_password
-    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: '123456'
     ports:
       - "3306:3306"
     volumes:
-      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql:rw #抛出文件，防止数据库丢失
+      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql #抛出文件，防止数据库丢失
       - ~/docker-workspace/workspace/mysql/conf.d:/etc/mysql/conf.d:rw
     deploy:
       resources:
@@ -73,15 +72,6 @@ services:
       - ~/docker-workspace/workspace/redis/data:/data:rw
     command: redis-server /etc/redis/redis.conf --appendonly yes
 
-  apisix-dashboard:
-    image: apache/apisix-dashboard:2.10.1-alpine
-    container_name: apisix-dashboard
-    restart: always
-    volumes:
-      - ~/docker-workspace/workspace/apisix/dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
-    ports:
-      - "9000:9000"
-
   apisix:
     image: apache/apisix:dev
     container_name: apisix
@@ -98,13 +88,22 @@ services:
       - "9443:9443/tcp"
       - "9092:9092/tcp"
 
+  apisix-dashboard:
+    image: apache/apisix-dashboard:2.10.1-alpine
+    container_name: apisix-dashboard
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/apisix/dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
+    ports:
+      - "9000:9000"
+
   etcd:
     image: bitnami/etcd:latest
     container_name: etcd
     restart: always
     # user: root
-    # volumes:
-    #   - ~/docker-workspace/workspace/etcd/etcd_data:/bitnami/etcd/data
+    volumes:
+      - ~/docker-workspace/workspace/etcd/etcd_data:/bitnami/etcd/data:rw
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
       - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
