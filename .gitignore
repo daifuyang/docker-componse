@@ -17,3 +17,5 @@ workspace/apisix/apisix_log/access.log
 workspace/apisix/apisix_log
 workspace/apisix/apisix_log
 workspace/redis/data/dump.rdb
+workspace/app/admin-api/public/uploads
+workspace/node

@@ -1,9 +1,10 @@
 version: "3.7"
 services:
   php:
-    container_name: php
-    restart: always
+    container_name: php # 容器名称
+    restart: always # 总是重启
     depends_on:
+      # 依赖容器
       - mysql
     build: ./php #选择自己dockerfile的镜像
     # ports:
@@ -12,6 +13,11 @@ services:
       - mysql:mysql
     volumes:
       - ~/docker-workspace/workspace/www:/usr/share/nginx/html
+    logging:
+      driver: json-file
+      options:
+        max-size: "2g" # 单个文件大小为200k
+        max-file: "10" # 最多10个文件
 
   nginx:
     image: nginx
@@ -22,11 +28,16 @@ services:
       - "80:80"
     volumes:
       - ~/docker-workspace/workspace/www:/usr/share/nginx/html
-      - ~/docker-workspace/workspace/conf/nginx:/etc/nginx:ro
+      - ~/docker-workspace/workspace/conf/nginx/nginx.conf:/etc/nginx/nginx.conf:rw
+      - ~/docker-workspace/workspace/conf/nginx/conf.d:/etc/nginx/conf.d:rw
       - ~/docker-workspace/workspace/etc/letsencrypt:/etc/letsencrypt:rw
-    command: nginx -g 'daemon off;'
     links:
       - php
+    logging:
+      driver: json-file
+      options:
+        max-size: "2g" # 单个文件大小为200k
+        max-file: "10" # 最多10个文件
 
   certbot:
     image: certbot/certbot
@@ -59,6 +70,11 @@ services:
         limits:
           cpus: "0.4"
           memory: 200M
+    logging:
+      driver: json-file
+      options:
+        max-size: "2g" # 单个文件大小为200k
+        max-file: "10" # 最多10个文件
 
   redis:
     image: redis
@@ -77,8 +93,7 @@ services:
     container_name: apisix
     restart: always
     volumes:
-      - ~/docker-workspace/workspace/apisix/apisix_log:/usr/local/apisix/logs:rw
-      - ~/docker-workspace/workspace/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ~/docker-workspace/workspace/apisix:/usr/local/apisix:rw
       - ~/docker-workspace/workspace/apisix/go-runner:/usr/local/go-runner:ro
     depends_on:
       - etcd
@@ -107,8 +122,8 @@ services:
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
       - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
-    # ports:
-    #   - "2379:2379"
+    ports:
+      - "23790:2379"
 
   admin-rpc:
     image: return1996/admin-rpc:latest
@@ -184,3 +199,17 @@ services:
       - mysql
       - etcd
       - user-rpc
+
+  node-website:
+    image: node:lts-alpine3.16
+    # build: ./node #选择自己dockerfile的镜像
+    container_name: node-website
+    volumes:
+      - ~/docker-workspace/workspace/node:/root/workspace:rw
+    command: /bin/sh -c "cd /root/workspace && npm install && npm start"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - portal-api
+    links:
+      - apisix
