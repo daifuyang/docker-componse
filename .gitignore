@@ -1,0 +1,4 @@
+workspace/apisix/apisix_log
+workspace/app/admin-api/public/uploads
+workspace/mysql/mysql
+workspace/redis/data
