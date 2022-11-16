@@ -5,3 +5,4 @@ workspace/redis/data
 workspace/app/admin-api/public/uploads
 workspace/node
 .gitignore
+workspace/www
