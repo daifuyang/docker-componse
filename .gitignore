@@ -1,4 +1,9 @@
-workspace/apisix/apisix_log
-workspace/app/admin-api/public/uploads
 workspace/mysql/mysql
+workspace/etcd/etcd_data
+workspace/apisix/apisix_log
 workspace/redis/data
+workspace/app/admin-api/public/uploads
+workspace/node
+.gitignore
+workspace/www
+workspace/conf/nginx/conf.d
