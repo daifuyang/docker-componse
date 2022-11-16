@@ -6,3 +6,4 @@ workspace/app/admin-api/public/uploads
 workspace/node
 .gitignore
 workspace/www
+workspace/conf/nginx/conf.d
