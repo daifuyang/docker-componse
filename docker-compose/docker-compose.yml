@@ -1,4 +1,5 @@
-version: "3.7"
+version: "3"
+
 services:
   php:
     container_name: php # 容器名称
@@ -23,7 +24,6 @@ services:
     image: nginx
     container_name: nginx
     restart: always
-    privileged: true
     ports:
       - "80:80"
     volumes:
@@ -54,7 +54,7 @@ services:
         max-file: "10" # 最多10个文件
 
   mysql:
-    image: mysql:8.0.27
+    image: mysql
     container_name: mysql
     restart: always
     command: --default-authentication-plugin=mysql_native_password
@@ -63,8 +63,8 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql:rw #抛出文件，防止数据库丢失
-      - ~/docker-workspace/workspace/mysql/conf.d:/etc/mysql/conf.d:rw
+      - ~/docker-workspace/workspace/mysql/mysql:/var/lib/mysql #抛出文件，防止数据库丢失
+      - ~/docker-workspace/workspace/mysql/conf.d:/etc/mysql/conf.d:ro
     deploy:
       resources:
         limits:
@@ -86,7 +86,7 @@ services:
     volumes:
       - ~/docker-workspace/workspace/redis/redis.conf:/etc/redis/redis.conf:ro
       - ~/docker-workspace/workspace/redis/data:/data:rw
-    command: redis-server /etc/redis/redis.conf --appendonly yes
+    command: redis-server /etc/redis/redis.conf --appendonly yes --slave-read-only no
 
   apisix-dashboard:
     image: apache/apisix-dashboard:2.15.0-alpine
@@ -112,20 +112,19 @@ services:
       - "9091:9091/tcp"
       - "9443:9443/tcp"
       - "9092:9092/tcp"
-
+    
   etcd:
     image: bitnami/etcd:latest
     container_name: etcd
     restart: always
-    # user: root
     volumes:
-      - ~/docker-workspace/workspace/etcd/etcd_data:/bitnami/etcd/data:rw
+      - ~/docker-workspace/workspace/etcd:/bitnami/etcd
     environment:
       - ALLOW_NONE_AUTHENTICATION=yes
       - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
     ports:
-      - "2379:2379"
-
+      - "2379:2379/tcp"
+    
   admin-rpc:
     image: return1996/admin-rpc:latest
     container_name: admin-rpc
@@ -158,7 +157,7 @@ services:
     container_name: admin-api
     restart: always
     volumes:
-      - ~/docker-workspace/workspace/app/admin-api/data:/app/data:rw #
+      - ~/docker-workspace/workspace/app/admin-api/data:/app/data:ro #
       - ~/docker-workspace/workspace/app/admin-api/etc:/app/etc:ro
       - ~/docker-workspace/workspace/app/admin-api/public:/app/public:rw
     ports:
@@ -200,16 +199,33 @@ services:
       - mysql
       - etcd
       - user-rpc
-  # node-website:
-  #   image: node:lts-alpine3.16
-  #   # build: ./node #选择自己dockerfile的镜像
-  #   container_name: node-website
-  #   volumes:
-  #     - ~/docker-workspace/workspace/node:/root/workspace:rw
-  #   command: /bin/sh -c "cd /root/workspace && npm install && npm start"
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - portal-api
-  #   links:
-  #     - apisix
+  
+  wechat-api:
+    image: return1996/wechat-api:latest
+    container_name: wechat-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/wechat-api/data:/app/data:rw #
+      - ~/docker-workspace/workspace/app/wechat-api/etc:/app/etc:ro
+      - ~/docker-workspace/workspace/app/wechat-api/public:/app/public:rw
+    ports:
+      - "8803:8803"
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+  node-website:
+    image: node:16.19.0-alpine
+    # build: ./node #选择自己dockerfile的镜像
+    container_name: node-website
+    volumes:
+      - ~/docker-workspace/workspace/node:/root/workspace:rw
+    command: /bin/sh -c "cd /root/workspace && npm install && node server.js"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - portal-api
+    links:
+      - apisix
