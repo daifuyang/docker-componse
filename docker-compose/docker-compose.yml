@@ -89,42 +89,45 @@ services:
     command: redis-server /etc/redis/redis.conf --appendonly yes --slave-read-only no
 
   apisix-dashboard:
-    image: apache/apisix-dashboard:2.15.0-alpine
+    image: apache/apisix-dashboard:3.0.1-alpine
     container_name: apisix-dashboard
     restart: always
     volumes:
       - ~/docker-workspace/workspace/apisix/dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
     ports:
-      - "9000:9000"  
+      - "9000:9000"
 
   apisix:
-    image: apache/apisix:2.15.0-alpine
+    image: apache/apisix:${APISIX_IMAGE_TAG:-3.2.0-debian}
     container_name: apisix
     restart: always
     volumes:
       - ~/docker-workspace/workspace/apisix/logs:/usr/local/apisix/logs
       - ~/docker-workspace/workspace/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
-      - ~/docker-workspace/workspace/apisix/go-runner:/usr/local/go-runner:ro
+    #   - ~/docker-workspace/workspace/apisix/go-runner:/usr/local/go-runner:ro
     depends_on:
       - etcd
     ports:
+      - "9180:9180/tcp"
       - "9080:9080/tcp"
       - "9091:9091/tcp"
       - "9443:9443/tcp"
       - "9092:9092/tcp"
-    
+
   etcd:
-    image: bitnami/etcd:latest
+    image: bitnami/etcd:3.4.15
     container_name: etcd
     restart: always
     volumes:
       - ~/docker-workspace/workspace/etcd:/bitnami/etcd
     environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      ETCD_ENABLE_V2: "true"
+      ALLOW_NONE_AUTHENTICATION: "yes"
+      ETCD_ADVERTISE_CLIENT_URLS: "http://etcd:2379"
+      ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
     ports:
       - "2379:2379/tcp"
-    
+
   admin-rpc:
     image: return1996/admin-rpc:latest
     container_name: admin-rpc
@@ -199,23 +202,35 @@ services:
       - mysql
       - etcd
       - user-rpc
-  
-  wechat-api:
-    image: return1996/wechat-api:latest
-    container_name: wechat-api
-    restart: always
-    volumes:
-      - ~/docker-workspace/workspace/app/wechat-api/data:/app/data:rw #
-      - ~/docker-workspace/workspace/app/wechat-api/etc:/app/etc:ro
-      - ~/docker-workspace/workspace/app/wechat-api/public:/app/public:rw
+
+  # wechat-api:
+  #   image: return1996/wechat-api:latest
+  #   container_name: wechat-api
+  #   restart: always
+  #   volumes:
+  #     - ~/docker-workspace/workspace/app/wechat-api/data:/app/data:rw #
+  #     - ~/docker-workspace/workspace/app/wechat-api/etc:/app/etc:ro
+  #     - ~/docker-workspace/workspace/app/wechat-api/public:/app/public:rw
+  #   ports:
+  #     - "8803:8803"
+  #   depends_on:
+  #     - mysql
+  #     - etcd
+  #   links:
+  #     - mysql
+  #     - etcd
+
+  zerocmf-node:
+    image: return1996/zerocmf-node:latest
+    # build: ./node #选择自己dockerfile的镜像
+    container_name: zerocmf-node
     ports:
-      - "8803:8803"
+      - "3000:3000"
     depends_on:
-      - mysql
-      - etcd
+      - apisix
     links:
-      - mysql
-      - etcd
+      - apisix
+
   node-website:
     image: node:16.19.0-alpine
     # build: ./node #选择自己dockerfile的镜像
