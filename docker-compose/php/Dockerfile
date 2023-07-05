@@ -1,6 +1,14 @@
-FROM php:5.6-fpm
+FROM php:7.1-fpm
 
-RUN sed -i -E 's/(deb|security).debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list
+RUN echo "deb https://mirrors.aliyun.com/debian/ buster main non-free contrib" > /etc/apt/sources.list \
+echo "deb-src https://mirrors.aliyun.com/debian/ buster main non-free contrib" >> /etc/apt/sources.list \
+echo "deb https://mirrors.aliyun.com/debian-security buster/updates main" >> /etc/apt/sources.list \
+echo "deb-src https://mirrors.aliyun.com/debian-security buster/updates main" >> /etc/apt/sources.list \
+echo "deb https://mirrors.aliyun.com/debian/ buster-updates main non-free contrib" >> /etc/apt/sources.list \
+echo "deb-src https://mirrors.aliyun.com/debian/ buster-updates main non-free contrib" >> /etc/apt/sources.list \
+echo "deb https://mirrors.aliyun.com/debian/ buster-backports main non-free contrib" >> /etc/apt/sources.list \
+echo "deb-src https://mirrors.aliyun.com/debian/ buster-backports main non-free contrib" >> /etc/apt/sources.list
+
 
 RUN  apt-get update && apt-get install -y \ 
     libfreetype6-dev \ 

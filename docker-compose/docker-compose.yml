@@ -54,7 +54,7 @@ services:
         max-file: "10" # 最多10个文件
 
   mysql:
-    image: mysql
+    image: mysql:8.0.33-debian
     container_name: mysql
     restart: always
     command: --default-authentication-plugin=mysql_native_password
@@ -76,6 +76,29 @@ services:
         max-size: "2g" # 单个文件大小为200k
         max-file: "10" # 最多10个文件
 
+  mongo:
+    container_name: mongo
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    command: [ --auth ]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 123456
+    volumes:
+      - ~/docker-workspace/workspace/mongodb/data/db:/data/db #抛出文件，防止数据库丢失
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 4000:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: 123456
+      ME_CONFIG_MONGODB_URL: mongodb://root:123456@mongo:27017/
+
   redis:
     image: redis
     restart: always
@@ -93,26 +116,27 @@ services:
     container_name: apisix-dashboard
     restart: always
     volumes:
-      - ~/docker-workspace/workspace/apisix/dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
+      - ~/docker-workspace/workspace/apisix-dashboard/config.yaml:/usr/local/apisix-dashboard/conf/conf.yaml
     ports:
       - "9000:9000"
 
   apisix:
-    image: apache/apisix:${APISIX_IMAGE_TAG:-3.2.0-debian}
+    image: apache/apisix:${APISIX_IMAGE_TAG:-3.3.0-debian}
     container_name: apisix
     restart: always
     volumes:
-      - ~/docker-workspace/workspace/apisix/logs:/usr/local/apisix/logs
-      - ~/docker-workspace/workspace/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
-    #   - ~/docker-workspace/workspace/apisix/go-runner:/usr/local/go-runner:ro
+      # - ~/docker-workspace/workspace/apisix:/usr/local/apisix
+    - ~/docker-workspace/workspace/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    - ~/docker-workspace/workspace/apisix/logs:/usr/local/apisix/logs
+
     depends_on:
       - etcd
     ports:
       - "9180:9180/tcp"
       - "9080:9080/tcp"
-      - "9091:9091/tcp"
-      - "9443:9443/tcp"
-      - "9092:9092/tcp"
+      # - "9091:9091/tcp"
+      # - "9443:9443/tcp"
+      # - "9092:9092/tcp"
 
   etcd:
     image: bitnami/etcd:3.4.15
@@ -127,6 +151,21 @@ services:
       ETCD_LISTEN_CLIENT_URLS: "http://0.0.0.0:2379"
     ports:
       - "2379:2379/tcp"
+
+  tenant-rpc:
+    image: return1996/tenant-rpc:latest
+    container_name: tenant-rpc
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/tenant-rpc/etc:/app/etc:ro
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+    networks:
+      - default
 
   admin-rpc:
     image: return1996/admin-rpc:latest
@@ -154,6 +193,58 @@ services:
     links:
       - mysql
       - etcd
+
+  portal-rpc:
+    image: return1996/portal-rpc:latest
+    container_name: portal-rpc
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/portal-rpc/etc:/app/etc:ro
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+
+  lowcode-api:
+    image: return1996/lowcode-api:latest
+    container_name: lowcode-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/lowcode-api/etc:/app/etc:ro
+    ports:
+      - "8600:8600"
+    depends_on:
+      - mongo
+      - redis
+      - mysql
+      - etcd
+    links:
+      - mongo
+      - redis
+      - mysql
+      - etcd
+      - user-rpc
+      - tenant-rpc
+
+  tenant-api:
+    image: return1996/tenant-api:latest
+    container_name: tenant-api
+    restart: always
+    volumes:
+      - ~/docker-workspace/workspace/app/tenant-api/etc:/app/etc:ro
+    ports:
+      - "8700:8700"
+    depends_on:
+      - mysql
+      - etcd
+    links:
+      - mysql
+      - etcd
+      - admin-rpc
+      - user-rpc
+      - portal-rpc
 
   admin-api:
     image: return1996/admin-api:latest
@@ -230,17 +321,16 @@ services:
       - apisix
     links:
       - apisix
-
-  node-website:
-    image: node:16.19.0-alpine
-    # build: ./node #选择自己dockerfile的镜像
-    container_name: node-website
-    volumes:
-      - ~/docker-workspace/workspace/node:/root/workspace:rw
-    command: /bin/sh -c "cd /root/workspace && npm install && node server.js"
-    ports:
-      - "3000:3000"
-    depends_on:
-      - portal-api
-    links:
-      - apisix
+  # node-website:
+  #   image: node:16.19.0-alpine
+  #   # build: ./node #选择自己dockerfile的镜像
+  #   container_name: node-website
+  #   volumes:
+  #     - ~/docker-workspace/workspace/node:/root/workspace:rw
+  #   command: /bin/sh -c "cd /root/workspace && npm install && node server.js"
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - portal-api
+  #   links:
+  #     - apisix
